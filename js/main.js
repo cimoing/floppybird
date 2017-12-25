@@ -311,8 +311,8 @@ function screenClick(e)
 	    playerJump('player1');
 	} else if(e.keyCode == 76) {
 	    playerJump('player2');
-	} else if(e.touches) {
-	    if(e.touches[0].clientY <= document.body.clientHeight) {
+	} else if(e.originalEvent.touches) {
+	    if(e.originalEvent.touches[0].pageY <= document.body.clientHeight / 2) {
 		playerJump('player1');
 	    } else {
 		playerJump('player2');
