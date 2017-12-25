@@ -172,9 +172,7 @@ function startGame()
 function updatePlayer(player)
 {
     var id = $(player).attr('id');
-    console.log("update player " , id);
     var config = getConfigById(id);
-    console.log("config is ", players);
    //rotation
     config.rotation = Math.min((config.velocity / 10) * 90, 90);
    
@@ -301,9 +299,9 @@ $(document).keydown(function(e){
 
 //Handle mouse down OR touch start
 if("ontouchstart" in window)
-   $(document).on("touchstart", screenClick);
+    $(document).on("touchstart", screenClick);
 else
-   $(document).on("mousedown", screenClick);
+    $(document).on("mousedown", screenClick);
 
 function screenClick(e)
 {
@@ -311,10 +309,14 @@ function screenClick(e)
     {
 	if(e.keyCode == 65) {
 	    playerJump('player1');
-	}
-
-	if(e.keyCode == 76) {
+	} else if(e.keyCode == 76) {
 	    playerJump('player2');
+	} else if(e.touches) {
+	    if(e.touches[0].clientY <= document.body.clientHeight) {
+		playerJump('player1');
+	    } else {
+		playerJump('player2');
+	    }
 	}
    }
    else if(currentstate == states.SplashScreen)
@@ -330,7 +332,6 @@ function playerJump(id)
 	//play jump sound
 	soundJump.stop();
 	soundJump.play();
-	console.log(players);
     }
 }
 
