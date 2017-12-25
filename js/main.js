@@ -25,10 +25,18 @@ var states = Object.freeze({
 
 var currentstate;
 
-var gravity = 0.25;
-var velocity = 0;
-var position = 180;
-var rotation = 0;
+var initValue = {
+    gravity: 0.25,
+    velocity: 0,
+    position: 180,
+    rotation: 0
+};
+
+var players = {
+    player1: $.extend({}, initValue),
+    player2: $.extend({}, initValue)
+};
+
 var jump = -4.6;
 var flyArea = $("#flyarea").height();
 
@@ -89,19 +97,29 @@ function setCookie(cname,cvalue,exdays)
    document.cookie = cname + "=" + cvalue + "; " + expires;
 }
 
+function getConfigById(id)
+{
+    return players[id];
+}
+
+function setConfigById()
+{
+}
+
 function showSplash()
 {
    currentstate = states.SplashScreen;
    
-   //set the defaults (again)
-   velocity = 0;
-   position = 180;
-   rotation = 0;
-   score = 0;
-   
-   //update the player in preparation for the next game
-   $("#player").css({ y: 0, x: 0});
-   updatePlayer($("#player"));
+    //set the defaults (again)
+    var i = 0;
+    $.each(players, function(index, player) {
+	$.each(initValue, function(key, value) {
+	    players[index][key] = value;
+	});
+	$("#"+index).css({y: 0, x: 0, opacity: 1 - i * 0.4 , "margin-top": 30 * i + "px"});
+	updatePlayer($("#"+index));
+	i++;
+    });
    
    soundSwoosh.stop();
    soundSwoosh.play();
@@ -137,39 +155,52 @@ function startGame()
    }
 
    //start up our loops
-   var updaterate = 1000.0 / 60.0 ; //60 times a second
-   loopGameloop = setInterval(gameloop, updaterate);
+   var updaterate = 1000.0 / 60 ; //60 times a second
+    loopGameloop = setInterval(function() {
+	$.each(players, function(id, player) {
+	    gameloop(id);
+	});
+    }, updaterate);
    loopPipeloop = setInterval(updatePipes, 1400);
    
-   //jump from the start!
-   playerJump();
+    //jump from the start!
+    $.each(players, function(id, player) {
+	playerJump(id);
+    });
 }
 
 function updatePlayer(player)
 {
+    var id = $(player).attr('id');
+    console.log("update player " , id);
+    var config = getConfigById(id);
+    console.log("config is ", players);
    //rotation
-   rotation = Math.min((velocity / 10) * 90, 90);
+    config.rotation = Math.min((config.velocity / 10) * 90, 90);
    
    //apply rotation and position
-   $(player).css({ rotate: rotation, top: position });
+    $(player).css({ rotate: config.rotation, top: config.position });
+    setConfigById(id, config);
 }
 
-function gameloop() {
-   var player = $("#player");
+function gameloop(id) {
+   var player = $("#"+id);
    
-   //update the player speed/position
-   velocity += gravity;
-   position += velocity;
+    //update the player speed/position
+    var config = getConfigById(id);
+    config.velocity += config.gravity;
+    config.position += config.velocity;
+    setConfigById(id, config);
    
    //update the player
    updatePlayer(player);
    
    //create the bounding box
-   var box = document.getElementById('player').getBoundingClientRect();
+   var box = document.getElementById(id).getBoundingClientRect();
    var origwidth = 34.0;
    var origheight = 24.0;
    
-   var boxwidth = origwidth - (Math.sin(Math.abs(rotation) / 90) * 8);
+   var boxwidth = origwidth - (Math.sin(Math.abs(config.rotation) / 90) * 8);
    var boxheight = (origheight + box.height) / 2;
    var boxleft = ((box.width - boxwidth) / 2) + box.left;
    var boxtop = ((box.height - boxheight) / 2) + box.top;
@@ -189,14 +220,16 @@ function gameloop() {
    //did we hit the ground?
    if(box.bottom >= $("#land").offset().top)
    {
-      playerDead();
+      playerDead(id);
       return;
    }
    
    //have they tried to escape through the ceiling? :o
    var ceiling = $("#ceiling");
-   if(boxtop <= (ceiling.offset().top + ceiling.height()))
-      position = 0;
+    if(boxtop <= (ceiling.offset().top + ceiling.height())) {
+	config.position = 0;
+	setConfigById(id, config);
+    }
    
    //we can't go any further without a pipe
    if(pipes[0] == null)
@@ -232,7 +265,7 @@ function gameloop() {
       else
       {
          //no! we touched the pipe
-         playerDead();
+         playerDead(id);
          return;
       }
    }
@@ -245,7 +278,7 @@ function gameloop() {
       pipes.splice(0, 1);
       
       //and score a point
-      playerScore();
+      playerScore(id);
    }
 }
 
@@ -260,6 +293,10 @@ $(document).keydown(function(e){
       else
          screenClick();
    }
+
+    if(currentstate != states.ScoreScreen) {
+	screenClick(e);
+    }
 });
 
 //Handle mouse down OR touch start
@@ -268,11 +305,17 @@ if("ontouchstart" in window)
 else
    $(document).on("mousedown", screenClick);
 
-function screenClick()
+function screenClick(e)
 {
-   if(currentstate == states.GameScreen)
-   {
-      playerJump();
+   if(currentstate == states.GameScreen && e)
+    {
+	if(e.keyCode == 65) {
+	    playerJump('player1');
+	}
+
+	if(e.keyCode == 76) {
+	    playerJump('player2');
+	}
    }
    else if(currentstate == states.SplashScreen)
    {
@@ -280,12 +323,15 @@ function screenClick()
    }
 }
 
-function playerJump()
+function playerJump(id)
 {
-   velocity = jump;
-   //play jump sound
-   soundJump.stop();
-   soundJump.play();
+    if(players[id]) {
+	players[id].velocity = jump;
+	//play jump sound
+	soundJump.stop();
+	soundJump.play();
+	console.log(players);
+    }
 }
 
 function setBigScore(erase)
@@ -345,17 +391,18 @@ function setMedal()
    return true;
 }
 
-function playerDead()
+function playerDead(id)
 {
+    var config = getConfigById(id);
    //stop animating everything!
    $(".animated").css('animation-play-state', 'paused');
    $(".animated").css('-webkit-animation-play-state', 'paused');
    
    //drop the bird to the floor
-   var playerbottom = $("#player").position().top + $("#player").width(); //we use width because he'll be rotated 90 deg
+   var playerbottom = $("#"+id).position().top + $("#"+id).width(); //we use width because he'll be rotated 90 deg
    var floor = flyArea;
    var movey = Math.max(0, floor - playerbottom);
-   $("#player").transition({ y: movey + 'px', rotate: 90}, 1000, 'easeInOutCubic');
+   $("#"+id).transition({ y: movey + 'px', rotate: 90}, 1000, 'easeInOutCubic');
    
    //it's time to change states. as of now we're considered ScoreScreen to disable left click/flying
    currentstate = states.ScoreScreen;
