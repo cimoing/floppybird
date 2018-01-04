@@ -301,7 +301,7 @@ function screenClick(e) {
             var touchP2 = false;
 
             $.each(e.originalEvent.touches, function (i, v) {
-                if (v.pageY <= document.body.clientHeight / 2) {
+                if (v.pageX <= document.body.clientWidth / 2) {
                     touchP1 = true;
                 } else {
                     touchP2 = true;
